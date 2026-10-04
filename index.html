@@ -210,6 +210,18 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
     <div class="zero" id="a-auj"></div>
   </div>
 
+  <!-- La semaine absorbe ce que la journée ne peut pas : un dîner, un mardi
+       difficile. Sans elle, une soirée ratée fait une journée « ratée », et
+       c'est de là que part le « tant pis, j'ai déjà dépassé ». -->
+  <div class="card" id="carte-semaine" style="margin-top:12px;display:none">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+      <strong style="font-size:16px">Cette semaine</strong>
+      <span id="s-chiffres" style="font-size:15px;color:var(--muted);white-space:nowrap"></span>
+    </div>
+    <div class="jauge" id="s-jauge" style="margin:12px 0 8px"><i id="s-barre" style="width:0%"></i></div>
+    <div class="reste" id="s-reste" style="text-align:left"></div>
+  </div>
+
   <button class="btn lg" id="b-envie" style="margin-top:14px">J'ai envie</button>
   <div class="row2">
     <button class="btn ghost" id="b-fume">J'ai fumé</button>
@@ -371,7 +383,7 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
 
 <script>
 "use strict";
-const VERSION = "0.6";
+const VERSION = "0.7";
 const CLE = "jarrete_v1";
 /* Trois minutes, parce qu'un délai qu'on s'impose est une technique défendable.
    PAS parce qu'une envie durerait trois minutes : aucune étude ne mesure la durée
@@ -542,6 +554,7 @@ function rendre(){
     ? (c.envies + (c.envies > 1 ? " envies notées" : " envie notée") + ", " + c.passees + " passée" + (c.passees > 1 ? "s" : "") + " sans cigarette.")
     : "Appuie sur « J'ai envie » au moment où ça vient — c'est ce qui construira la carte.";
 
+  rendreSemaine();
   rendreObjectif(c);
   rendreHisto();
   rendreCourbe();
@@ -556,7 +569,7 @@ function rendre(){
    la fenêtre de rechute, elle, dure des années (13 % de gens ont encore des
    envies fortes à six mois). Donc l'appli ne s'arrête pas : elle change de
    compteur, et surtout elle se fait plus discrète, pas plus bavarde. */
-function apresZero(){ return !!S.setup && joursEntre(S.setup.cible, cle()) >= 0; }
+function apresZero(ref){ return !!S.setup && joursEntre(S.setup.cible, ref || cle()) >= 0; }
 
 /* Avant le zéro, chaque cigarette se note : un jour sans saisie est ambigu, on
    ne compte rien. Après le zéro, l'état attendu est « rien », et on ne touche
@@ -635,6 +648,54 @@ function rendreObjectif(c){
   $("obj-reste").textContent = "Il reste " + fmtEuro(o.montant - c.euros)
     + " — environ " + j + (j > 1 ? " jours" : " jour") + " au rythme de tes " + c.jours
     + (c.jours > 1 ? " derniers jours" : " dernier jour") + ".";
+}
+
+/* ===================== la semaine =====================
+   Le budget de la semaine est simplement la somme des budgets quotidiens du
+   lundi au dimanche : aucun réglage de plus, et il décroît tout seul avec la
+   pente. Les jours d'avant la date de départ n'y entrent pas. */
+/* `ref` sert aux tests : sans elle on prend aujourd'hui. Sans ce paramètre, la
+   branche « il reste des jours » ne serait jouée qu'un jour sur sept. */
+function semaineEnCours(ref){
+  const s = S.setup, auj = ref || cle(), d = deCle(auj);
+  const lundiD = deCle(auj);
+  lundiD.setDate(lundiD.getDate() - ((d.getDay() + 6) % 7));   /* 0 = lundi */
+  const lundi = cle(lundiD);
+  let budget = 0, fumees = 0, aVenir = 0, jours = 0;
+  for(let i = 0; i < 7; i++){
+    const x = deCle(lundi); x.setDate(x.getDate() + i);
+    const k = cle(x);
+    if(joursEntre(s.debut, k) < 0) continue;      /* avant le départ : hors semaine */
+    budget += budgetDu(k);
+    jours++;
+    if(joursEntre(auj, k) > 0) aVenir++;          /* encore à venir */
+    else { const r = S.jours[k]; fumees += r ? r.fumees : 0; }
+  }
+  return {budget, fumees, aVenir, jours, lundi};
+}
+
+function rendreSemaine(ref){
+  const w = semaineEnCours(ref);
+  /* après le zéro le budget vaut zéro : la carte n'aurait rien à dire */
+  const utile = !apresZero(ref) && w.jours > 0 && w.budget > 0;
+  $("carte-semaine").style.display = utile ? "block" : "none";
+  if(!utile) return;
+
+  $("s-chiffres").textContent = w.fumees + " sur " + w.budget;
+  $("s-barre").style.width = Math.min(100, w.fumees / w.budget * 100) + "%";
+  $("s-jauge").classList.toggle("depasse", w.fumees > w.budget);
+
+  const reste = w.budget - w.fumees;
+  if(reste < 0){
+    $("s-reste").textContent = "au-dessus de " + (-reste) + " pour la semaine"
+      + (w.aVenir ? " — la semaine repart lundi" : " — la semaine se termine ce soir");
+    return;
+  }
+  const joursOuverts = w.aVenir + 1;              /* aujourd'hui compris */
+  const parJour = Math.floor(reste / joursOuverts);
+  $("s-reste").textContent = "il t'en reste " + reste
+    + (w.aVenir === 0 ? " pour ce dernier jour de la semaine"
+      : " d'ici dimanche — environ " + parJour + " par jour");
 }
 
 /* ===================== la courbe et le rythme réel =====================
