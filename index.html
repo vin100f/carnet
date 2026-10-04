@@ -171,12 +171,20 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
 <section id="v-jour" class="vue">
   <div class="top"><h1>Aujourd'hui</h1><span class="d" id="j-date"></span></div>
 
-  <div class="card jour">
+  <div class="card jour" id="carte-pente">
     <div class="lab">fumées aujourd'hui</div>
     <div class="gros"><span id="j-fum">0</span><span class="sur"> / <span id="j-bud">0</span></span></div>
     <div class="jauge" id="j-jauge"><i id="j-barre" style="width:0%"></i></div>
     <div class="reste" id="j-reste"></div>
     <div class="zero" id="j-zero"></div>
+  </div>
+
+  <!-- après la date du zéro, la pente n'a plus de sens : on change de compteur -->
+  <div class="card jour" id="carte-apres" style="display:none">
+    <div class="lab">jours sans cigarette notée</div>
+    <div class="gros"><span id="a-propres">0</span></div>
+    <div class="reste" id="a-sur"></div>
+    <div class="zero" id="a-auj"></div>
   </div>
 
   <button class="btn lg" id="b-envie" style="margin-top:14px">J'ai envie</button>
@@ -192,6 +200,15 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
     <div class="tuile"><b id="c-jr">0</b><span>jours<br>de suivi</span></div>
   </div>
   <p class="note" id="c-env"></p>
+
+  <div class="card" id="corps-card" style="margin-top:14px;display:none">
+    <h2 style="margin-top:0">Ce que ton corps fait</h2>
+    <div id="corps-prochain" style="font-size:17px;line-height:1.45"></div>
+    <div class="jauge" style="margin:14px 0 8px"><i id="corps-barre" style="width:0%"></i></div>
+    <div class="reste" id="corps-delai" style="text-align:left"></div>
+    <ul class="liste" id="corps-passes" style="margin-top:16px"></ul>
+    <p class="note" style="margin-bottom:0">Repères de l'Organisation mondiale de la santé. Ce sont des moyennes de population, pas une mesure de toi.</p>
+  </div>
 
   <div class="card" id="obj-card" style="margin-top:14px">
     <div id="obj-vide">
@@ -318,7 +335,7 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
 
 <script>
 "use strict";
-const VERSION = "0.4";
+const VERSION = "0.5";
 const CLE = "jarrete_v1";
 /* Trois minutes, parce qu'un délai qu'on s'impose est une technique défendable.
    PAS parce qu'une envie durerait trois minutes : aucune étude ne mesure la durée
@@ -328,6 +345,22 @@ const CLE = "jarrete_v1";
    double, dans le HTML et dans le JS, et c'est la version JS qui s'affichait. */
 const DUREE = 180;
 const TXT_DECOMPTE = "Trois minutes avant de décider. C'est tout ce que fait ce bouton.";
+
+/* Les repères de l'OMS, recopiés tels quels — pas arrondis dans le sens qui
+   arrange. Une appli du marché annonce un risque de cancer du poumon « revenu
+   à la normale » en 5 ans là où l'OMS écrit : à 10 ans, environ la MOITIÉ de
+   celui d'un fumeur. C'est le genre de flatterie qui décrédibilise tout le reste.
+   https://www.who.int/fr/news-room/questions-and-answers/item/tobacco-health-benefits-of-smoking-cessation */
+const CORPS = [
+  {j: 0,    q: "20 minutes",     t: "Ton rythme cardiaque et ta pression sanguine redescendent."},
+  {j: 0.5,  q: "12 heures",      t: "Le monoxyde de carbone dans ton sang est redevenu normal."},
+  {j: 14,   q: "2 semaines",     t: "Ta circulation s'améliore et ta fonction pulmonaire augmente — ça se poursuit jusqu'à 12 semaines."},
+  {j: 30,   q: "1 mois",         t: "La toux et l'essoufflement commencent à diminuer — ça se poursuit jusqu'à 9 mois."},
+  {j: 365,  q: "1 an",           t: "Ton risque de maladie coronarienne a diminué de près de moitié."},
+  {j: 1825, q: "5 ans",          t: "Ton risque d'AVC rejoint celui d'un non-fumeur — entre 5 et 15 ans."},
+  {j: 3650, q: "10 ans",         t: "Ton risque de cancer du poumon est descendu à environ la moitié de celui d'un fumeur."},
+  {j: 5475, q: "15 ans",         t: "Ton risque de maladie coronarienne est celui d'un non-fumeur."}
+];
 
 const ACTIONS_PAR_DEFAUT = [
   "Un grand verre d'eau, lentement.",
@@ -392,27 +425,23 @@ const prixCig = () => S.setup ? S.setup.prix / S.setup.parPaquet : 0;
 
 /* Les cumuls ne redescendent jamais : une journée au-dessus du départ
    n'a rien évité, elle ne retire rien non plus. Pas de dette. */
-/* Un jour ne compte que s'il est DANS la période : ni dans l'avenir, ni avant
-   la date de départ. Sans ça, la soirée où l'on installe l'appli se retrouve
-   comptée comme une journée entière sans fumer — 20 cigarettes évitées qu'on
-   n'a pas évitées. Un compteur qui démarre par un cadeau ne vaut rien. */
-function dansLaPeriode(k){
-  const auj = cle();
-  if(joursEntre(k, auj) < 0) return false;                       /* l'avenir */
-  if(S.setup && joursEntre(S.setup.debut, k) < 0) return false;   /* avant le départ */
-  return true;
-}
 function cumuls(){
-  const s = S.setup; if(!s) return {nonFumees:0, euros:0, jours:0, envies:0, passees:0, tenus:0};
+  const s = S.setup;
+  const vide = {nonFumees:0, euros:0, jours:0, envies:0, passees:0, tenus:0};
+  if(!s) return vide;
+  const n = joursEntre(s.debut, cle());
+  if(n < 0) return vide;
   let nf = 0, jours = 0, env = 0, passees = 0, tenus = 0;
-  for(const k of Object.keys(S.jours)){
-    if(!dansLaPeriode(k)) continue;
-    const j = S.jours[k];
-    nf += Math.max(0, s.base - j.fumees);
+  for(let i = 0; i <= n; i++){
+    const d = deCle(s.debut); d.setDate(d.getDate() + i);
+    const k = cle(d), r = S.jours[k];
+    const auDela = joursEntre(s.cible, k) >= 0;
+    if(!r && !auDela) continue;
+    const fum = r ? r.fumees : 0;
+    nf += Math.max(0, s.base - fum);
     jours++;
-    if(j.fumees <= budgetDu(k)) tenus++;
-    env += j.envies.length;
-    passees += j.envies.filter(e => e.passee).length;
+    if(fum <= budgetDu(k)) tenus++;
+    if(r){ env += r.envies.length; passees += r.envies.filter(e => e.passee).length; }
   }
   return {nonFumees:nf, euros:nf*prixCig(), jours, envies:env, passees, tenus};
 }
@@ -444,8 +473,14 @@ function montrer(v){
 function rendre(){
   if(!S.setup){ return; }
   const k = cle(), j = jourDe(k), bud = budgetDu(k);
+  const apres = apresZero();
 
   $("j-date").textContent = joliDate(k);
+  $("carte-pente").style.display = apres ? "none" : "block";
+  $("carte-apres").style.display = apres ? "block" : "none";
+  $("corps-card").style.display  = apres ? "block" : "none";
+  if(apres) rendreApres(k, j);
+
   $("j-fum").textContent = j.fumees;
   $("j-bud").textContent = bud;
 
@@ -475,6 +510,66 @@ function rendre(){
   rendreHisto();
   rendreListes();
   $("r-ver").textContent = "J'arrête · version " + VERSION;
+}
+
+/* ===================== l'après-zéro =====================
+   Passé la date cible, la pente n'existe plus et l'appli changerait de nature
+   si elle continuait d'afficher « 0 / 0 ». C'est le trou que toutes les applis
+   du marché ont en commun : leurs programmes s'arrêtent vers J30-J90, alors que
+   la fenêtre de rechute, elle, dure des années (13 % de gens ont encore des
+   envies fortes à six mois). Donc l'appli ne s'arrête pas : elle change de
+   compteur, et surtout elle se fait plus discrète, pas plus bavarde. */
+function apresZero(){ return !!S.setup && joursEntre(S.setup.cible, cle()) >= 0; }
+
+/* Avant le zéro, chaque cigarette se note : un jour sans saisie est ambigu, on
+   ne compte rien. Après le zéro, l'état attendu est « rien », et on ne touche
+   l'appli que pour un écart : un jour sans saisie est donc un jour propre.
+   D'où le libellé « sans cigarette NOTÉE » — le compteur dit ce qu'il mesure. */
+function joursPropresDepuisZero(){
+  const debut = S.setup.cible, auj = cle();
+  const n = joursEntre(debut, auj);
+  if(n < 0) return {propres: 0, total: 0};
+  let propres = 0;
+  for(let i = 0; i <= n; i++){
+    const d = deCle(debut); d.setDate(d.getDate() + i);
+    const r = S.jours[cle(d)];
+    if(!r || r.fumees === 0) propres++;
+  }
+  return {propres, total: n + 1};
+}
+
+function rendreApres(k, j){
+  const p = joursPropresDepuisZero();
+  $("a-propres").textContent = p.propres;
+  $("a-sur").textContent = "sur " + p.total + (p.total > 1 ? " jours" : " jour")
+    + " depuis le " + joliCourt(S.setup.cible);
+  $("a-auj").textContent = j.fumees === 0
+    ? "aucune cigarette aujourd'hui"
+    : (j.fumees + (j.fumees > 1 ? " cigarettes aujourd'hui" : " cigarette aujourd'hui"));
+
+  /* les repères du corps : le prochain en grand, les passés en liste sobre */
+  const ecoule = joursEntre(S.setup.cible, k);
+  const passes = CORPS.filter(x => ecoule >= x.j);
+  const prochain = CORPS.find(x => ecoule < x.j);
+
+  if(prochain){
+    const precedent = passes.length ? passes[passes.length-1].j : 0;
+    const portion = (ecoule - precedent) / Math.max(1, prochain.j - precedent);
+    $("corps-prochain").textContent = prochain.t;
+    $("corps-barre").style.width = Math.max(0, Math.min(100, portion*100)) + "%";
+    const reste = Math.ceil(prochain.j - ecoule);
+    $("corps-delai").textContent = "à " + prochain.q + " — dans "
+      + (reste > 60 ? Math.round(reste/30) + " mois" : reste + (reste > 1 ? " jours" : " jour"));
+  } else {
+    $("corps-prochain").textContent = "Tu as passé tous les repères de la liste.";
+    $("corps-barre").style.width = "100%";
+    $("corps-delai").textContent = "";
+  }
+  $("corps-passes").innerHTML = passes.length
+    ? passes.slice().reverse().map(x =>
+        '<li><span style="color:var(--accent);flex:none">✓</span><span>'
+        + '<strong>' + x.q + '</strong> — ' + echap(x.t) + '</span></li>').join("")
+    : "";
 }
 
 /* L'objectif d'épargne : les incitations sont le seul levier à certitude élevée
@@ -507,15 +602,24 @@ function rendreObjectif(c){
 
 function rendreHisto(){
   const ul = $("h-liste");
-  const ks = Object.keys(S.jours).filter(dansLaPeriode).sort().reverse().slice(0, 60);
-  if(!ks.length){ ul.innerHTML = '<li class="vide">Rien encore. La première journée commence le ' + joliCourt(S.setup.debut) + '</li>'; return; }
-  ul.innerHTML = ks.map(k => {
-    const j = S.jours[k], b = budgetDu(k), ok = j.fumees <= b;
-    const env = j.envies.length ? '<small>' + j.envies.length + ' envie' + (j.envies.length>1?'s':'') + '</small>' : '';
-    return '<li><span class="pt ' + (ok ? 'ok' : 'ko') + '"></span>'
+  if(!S.setup){ ul.innerHTML = ""; return; }
+  const auj = cle(), n = joursEntre(S.setup.debut, auj), lignes = [];
+  for(let i = n; i >= 0 && lignes.length < 60; i--){
+    const d = deCle(S.setup.debut); d.setDate(d.getDate() + i);
+    const k = cle(d), r = S.jours[k];
+    const auDela = joursEntre(S.setup.cible, k) >= 0;
+    if(!r && !auDela) continue;
+    const fum = r ? r.fumees : 0, b = budgetDu(k), ok = fum <= b;
+    const ne = r ? r.envies.length : 0;
+    const env = ne ? '<small>' + ne + ' envie' + (ne > 1 ? 's' : '') + '</small>' : '';
+    /* après le zéro il n'y a plus de budget : « 3 / 0 » ne voudrait rien dire */
+    const chiffre = auDela ? String(fum) : fum + ' <small>/ ' + b + '</small>';
+    lignes.push('<li><span class="pt ' + (ok ? 'ok' : 'ko') + '"></span>'
       + '<span class="j">' + joliCourt(k) + env + '</span>'
-      + '<span class="n">' + j.fumees + ' <small>/ ' + b + '</small></span></li>';
-  }).join("");
+      + '<span class="n">' + chiffre + '</span></li>');
+  }
+  ul.innerHTML = lignes.length ? lignes.join("")
+    : '<li class="vide">Rien encore. La première journée commence le ' + joliCourt(S.setup.debut) + '</li>';
 }
 
 function rendreListes(){
