@@ -225,6 +225,9 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
     <h2 style="margin-top:0">La pente</h2>
     <label for="r-base">Point de départ (cig./jour)</label>
     <input type="number" id="r-base" inputmode="numeric" min="1" max="80" step="1">
+    <label for="r-debut">Date de départ
+      <span class="aide">Le premier jour qui compte. Les journées d'avant sont ignorées.</span></label>
+    <input type="date" id="r-debut">
     <label for="r-date">Date du zéro</label>
     <input type="date" id="r-date">
     <label for="r-prix">Prix du paquet (€)</label>
@@ -266,6 +269,8 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
     <p class="note" style="margin-top:0">Tout est gardé dans ce navigateur, sur ce téléphone. Rien ne part sur un serveur, rien n'est synchronisé.</p>
     <button class="btn ghost" id="r-export">Copier une sauvegarde</button>
     <p class="note" id="r-expmsg"></p>
+    <button class="btn ghost" id="r-raz" style="margin-top:14px">Tout effacer et recommencer</button>
+    <p class="note" style="margin-bottom:0">Efface les journées, les envies, les raisons et l'objectif, et renvoie au premier écran. Il faut taper deux fois.</p>
   </div>
   <p class="note" id="r-ver"></p>
 </section>
@@ -313,7 +318,7 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
 
 <script>
 "use strict";
-const VERSION = "0.2";
+const VERSION = "0.3";
 const CLE = "jarrete_v1";
 /* Trois minutes, parce qu'un délai qu'on s'impose est une technique défendable.
    PAS parce qu'une envie durerait trois minutes : aucune étude ne mesure la durée
@@ -387,12 +392,21 @@ const prixCig = () => S.setup ? S.setup.prix / S.setup.parPaquet : 0;
 
 /* Les cumuls ne redescendent jamais : une journée au-dessus du départ
    n'a rien évité, elle ne retire rien non plus. Pas de dette. */
-function cumuls(){
-  const s = S.setup; if(!s) return {nonFumees:0, euros:0, jours:0, envies:0, passees:0};
-  let nf = 0, jours = 0, env = 0, passees = 0, tenus = 0;
+/* Un jour ne compte que s'il est DANS la période : ni dans l'avenir, ni avant
+   la date de départ. Sans ça, la soirée où l'on installe l'appli se retrouve
+   comptée comme une journée entière sans fumer — 20 cigarettes évitées qu'on
+   n'a pas évitées. Un compteur qui démarre par un cadeau ne vaut rien. */
+function dansLaPeriode(k){
   const auj = cle();
+  if(joursEntre(k, auj) < 0) return false;                       /* l'avenir */
+  if(S.setup && joursEntre(S.setup.debut, k) < 0) return false;   /* avant le départ */
+  return true;
+}
+function cumuls(){
+  const s = S.setup; if(!s) return {nonFumees:0, euros:0, jours:0, envies:0, passees:0, tenus:0};
+  let nf = 0, jours = 0, env = 0, passees = 0, tenus = 0;
   for(const k of Object.keys(S.jours)){
-    if(joursEntre(k, auj) < 0) continue;              /* on ne compte pas l'avenir */
+    if(!dansLaPeriode(k)) continue;
     const j = S.jours[k];
     nf += Math.max(0, s.base - j.fumees);
     jours++;
@@ -418,6 +432,11 @@ function montrer(v){
   for(const s of document.querySelectorAll(".vue")) s.classList.toggle("on", s.id === "v-"+v);
   for(const b of document.querySelectorAll("nav button")) b.classList.toggle("on", b.dataset.v === v);
   document.querySelector("nav").style.display = (v === "setup") ? "none" : "flex";
+  /* On recharge les champs en ENTRANT dans les réglages, pas à chaque rendu :
+     sinon une saisie en cours se ferait écraser par un rendu déclenché ailleurs.
+     Les remplir une seule fois au démarrage ne suffisait pas — ils affichaient
+     une valeur périmée dès que le réglage changeait. */
+  if(v === "reg") remplirReglages();
   window.scrollTo(0,0);
   rendre();
 }
@@ -487,9 +506,9 @@ function rendreObjectif(c){
 }
 
 function rendreHisto(){
-  const ul = $("h-liste"), auj = cle();
-  const ks = Object.keys(S.jours).filter(k => joursEntre(k, auj) >= 0).sort().reverse().slice(0, 60);
-  if(!ks.length){ ul.innerHTML = '<li class="vide">Rien encore. La première journée commence aujourd\'hui.</li>'; return; }
+  const ul = $("h-liste");
+  const ks = Object.keys(S.jours).filter(dansLaPeriode).sort().reverse().slice(0, 60);
+  if(!ks.length){ ul.innerHTML = '<li class="vide">Rien encore. La première journée commence le ' + joliCourt(S.setup.debut) + '</li>'; return; }
   ul.innerHTML = ks.map(k => {
     const j = S.jours[k], b = budgetDu(k), ok = j.fumees <= b;
     const env = j.envies.length ? '<small>' + j.envies.length + ' envie' + (j.envies.length>1?'s':'') + '</small>' : '';
@@ -665,20 +684,46 @@ function remplirReglages(){
   $("r-date").value = S.setup.cible;
   $("r-prix").value = S.setup.prix;
   $("r-pq").value = S.setup.parPaquet;
+  $("r-debut").value = S.setup.debut;
   if(S.objectif){ $("r-objn").value = S.objectif.nom; $("r-objm").value = S.objectif.montant; }
 }
 function enregistrerReglages(){
   const base = parseInt($("r-base").value, 10);
   const cible = $("r-date").value;
+  const debut = $("r-debut").value;
   const prix = parseFloat(String($("r-prix").value).replace(",", "."));
   const pq = parseInt($("r-pq").value, 10);
-  if(!(base >= 1 && base <= 80) || !cible || !(prix > 0) || !(pq >= 1)){
+  if(!(base >= 1 && base <= 80) || !cible || !debut || !(prix > 0) || !(pq >= 1)){
     $("r-msg").textContent = "Une des valeurs ne va pas — rien n'a été changé."; return;
   }
-  S.setup.base = base; S.setup.cible = cible; S.setup.prix = prix; S.setup.parPaquet = pq;
+  if(joursEntre(debut, cible) < 1){
+    $("r-msg").textContent = "La date du zéro doit venir après la date de départ — rien n'a été changé."; return;
+  }
+  S.setup.base = base; S.setup.cible = cible; S.setup.debut = debut;
+  S.setup.prix = prix; S.setup.parPaquet = pq;
   sauver(); rendre();
   $("r-msg").textContent = "Enregistré. La pente est recalculée.";
   setTimeout(() => { $("r-msg").textContent = ""; }, 2500);
+}
+
+/* Tout effacer : deux tapes, pas de fenêtre système. Un seul bouton qui efface
+   tout d'un coup serait trop facile à toucher par accident sur un téléphone. */
+let effacementArme = null;
+function boutonEffacer(){
+  const b = $("r-raz");
+  if(!effacementArme){
+    b.textContent = "Confirmer : tout effacer";
+    b.classList.add("warm");
+    effacementArme = setTimeout(() => {
+      effacementArme = null; b.textContent = "Tout effacer et recommencer"; b.classList.remove("warm");
+    }, 6000);
+    return;
+  }
+  clearTimeout(effacementArme); effacementArme = null;
+  S = neuf();
+  sauver();
+  b.textContent = "Tout effacer et recommencer"; b.classList.remove("warm");
+  lancerSetup();
 }
 
 /* ===================== les écouteurs ===================== */
@@ -705,6 +750,7 @@ $("e-passe").addEventListener("click", () => repondre(true));
 $("e-fume").addEventListener("click", () => repondre(false));
 $("e-ok").addEventListener("click", fermerEnvie);
 $("r-save").addEventListener("click", enregistrerReglages);
+$("r-raz").addEventListener("click", boutonEffacer);
 
 $("obj-aller").addEventListener("click", () => { montrer("reg"); $("r-objn").focus(); });
 $("r-objsave").addEventListener("click", () => {
