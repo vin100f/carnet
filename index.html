@@ -383,7 +383,7 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
 
 <script>
 "use strict";
-const VERSION = "0.7";
+const VERSION = "0.8";
 const CLE = "jarrete_v1";
 /* Trois minutes, parce qu'un délai qu'on s'impose est une technique défendable.
    PAS parce qu'une envie durerait trois minutes : aucune étude ne mesure la durée
@@ -675,7 +675,23 @@ function semaineEnCours(ref){
 }
 
 function rendreSemaine(ref){
-  const w = semaineEnCours(ref);
+  const auj = ref || cle(), w = semaineEnCours(ref);
+
+  /* Le cas qui m'a échappé : quand le départ est encore devant, la semaine en
+     cours ne contient aucun jour comptabilisable. Cacher la carte était juste,
+     mais muet — et un écran muet donne l'impression d'être cassé. On annonce
+     donc la semaine à venir plutôt que de disparaître. */
+  if(!apresZero(ref) && w.jours === 0 && joursEntre(auj, S.setup.debut) > 0){
+    const f = semaineEnCours(S.setup.debut);
+    $("carte-semaine").style.display = "block";
+    $("s-chiffres").textContent = "0 sur " + f.budget;
+    $("s-barre").style.width = "0%";
+    $("s-jauge").classList.remove("depasse");
+    $("s-reste").textContent = "elle commence le " + joliCourt(S.setup.debut)
+      + " — " + f.budget + " pour ces " + f.jours + " jours";
+    return;
+  }
+
   /* après le zéro le budget vaut zéro : la carte n'aurait rien à dire */
   const utile = !apresZero(ref) && w.jours > 0 && w.budget > 0;
   $("carte-semaine").style.display = utile ? "block" : "none";
