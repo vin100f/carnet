@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="J'arrête">
+<meta name="theme-color" content="#F7F5F0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111614" media="(prefers-color-scheme: dark)">
+<title>J'arrête</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230F7A5A'/%3E%3Crect x='34' y='82' width='88' height='22' rx='6' fill='%23fff'/%3E%3Crect x='128' y='82' width='18' height='22' rx='5' fill='%23FFD36E'/%3E%3Cpath d='M38 134 L146 50' stroke='%23fff' stroke-width='12' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230F7A5A'/%3E%3Crect x='34' y='82' width='88' height='22' rx='6' fill='%23fff'/%3E%3Crect x='128' y='82' width='18' height='22' rx='5' fill='%23FFD36E'/%3E%3Cpath d='M38 134 L146 50' stroke='%23fff' stroke-width='12' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#F7F5F0; --surface:#FFFFFF; --ink:#16201C; --muted:#5E6B65;
+  --line:#E4E1DA; --accent:#0F7A5A; --accent-ink:#FFFFFF; --soft:#E3F2EC;
+  --warm:#B06A2C; --warm-soft:#F6EADC; --shadow:0 1px 2px rgba(22,32,28,.06),0 8px 24px rgba(22,32,28,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111614; --surface:#1A211E; --ink:#E8EFEA; --muted:#9BA9A2;
+    --line:#2A332F; --accent:#35C08E; --accent-ink:#06211A; --soft:#1E2E28;
+    --warm:#E0A86A; --warm-soft:#2B2419; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111614; --surface:#1A211E; --ink:#E8EFEA; --muted:#9BA9A2;
+  --line:#2A332F; --accent:#35C08E; --accent-ink:#06211A; --soft:#1E2E28;
+  --warm:#E0A86A; --warm-soft:#2B2419; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding:0 16px calc(96px + env(safe-area-inset-bottom)); max-width:560px; margin:0 auto;
+  overscroll-behavior-y:contain;
+}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+h2{font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px;font-weight:700}
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:calc(18px + env(safe-area-inset-top)) 0 4px}
+.top .d{font-size:13px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
+.card + .card{margin-top:12px}
+
+/* --- le bandeau du jour --- */
+.jour{text-align:center;padding:22px 18px}
+.jour .lab{font-size:13px;color:var(--muted);letter-spacing:.04em}
+.jour .gros{font-size:60px;font-weight:800;line-height:1.05;letter-spacing:-.03em;margin:4px 0 0;font-variant-numeric:tabular-nums}
+.jour .sur{font-size:17px;color:var(--muted);font-weight:600}
+.jauge{height:10px;border-radius:999px;background:var(--line);margin:16px 0 8px;overflow:hidden}
+.jauge i{display:block;height:100%;border-radius:999px;background:var(--accent);transition:width .35s ease}
+.jauge.depasse i{background:var(--warm)}
+.reste{font-size:14px;color:var(--muted)}
+
+.zero{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;
+  background:var(--soft);color:var(--accent);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600}
+
+/* --- boutons --- */
+.btn{display:block;width:100%;border:0;border-radius:16px;padding:17px 18px;font-size:17px;font-weight:700;
+  font-family:inherit;cursor:pointer;color:var(--accent-ink);background:var(--accent)}
+.btn:active{transform:scale(.985)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.warm{background:var(--warm-soft);color:var(--warm);border:1px solid transparent}
+.btn.lg{padding:26px 18px;font-size:21px;border-radius:22px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+
+/* --- cumuls --- */
+.tuiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tuile{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 10px;text-align:center}
+.tuile b{display:block;font-size:24px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tuile span{display:block;font-size:11px;color:var(--muted);margin-top:3px;line-height:1.3}
+
+/* --- l'écran d'envie --- */
+#envie{position:fixed;inset:0;background:var(--bg);z-index:50;display:none;flex-direction:column;
+  padding:calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));overflow:auto}
+#envie.on{display:flex}
+.scene{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding:12px 0}
+.anneau{position:relative;width:min(74vw,290px);height:min(74vw,290px);flex:none}
+.anneau svg{width:100%;height:100%;transform:rotate(-90deg)}
+.anneau .bgc{fill:none;stroke:var(--line);stroke-width:9}
+.anneau .fg{fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;transition:stroke-dashoffset .95s linear}
+.centre{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:40px;text-align:center}
+#chrono{font-size:46px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.centre .sous{font-size:14px;color:var(--muted);max-width:19ch}
+.centre .phrase{font-size:19px;font-weight:600;line-height:1.35;max-width:16ch}
+
+.souffle{width:120px;height:120px;border-radius:50%;background:var(--soft);border:2px solid var(--accent);
+  transition:transform 4s cubic-bezier(.4,0,.5,1)}
+.souffle.out{transition-duration:6s}
+
+.outils{display:grid;grid-template-columns:1fr 1fr;gap:9px;flex:none;padding-top:6px}
+.outil{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;
+  padding:14px 10px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:center}
+.outil.actif{border-color:var(--accent);background:var(--soft);color:var(--accent)}
+.fin{margin-top:16px;display:none}
+.fin.on{display:block}
+.quitter{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;border:0;background:transparent;
+  color:var(--muted);font:inherit;font-size:15px;cursor:pointer;padding:8px 10px;z-index:2}
+
+/* --- réglages --- */
+label{display:block;font-size:14px;font-weight:600;margin:14px 0 6px}
+label .aide{display:block;font-weight:400;color:var(--muted);font-size:13px;margin-top:2px}
+input[type=number],input[type=date],input[type=text],textarea{
+  width:100%;font:inherit;font-size:17px;padding:13px 14px;border:1px solid var(--line);
+  border-radius:12px;background:var(--bg);color:var(--ink)}
+textarea{min-height:92px;resize:vertical;font-size:16px}
+.liste{list-style:none;margin:10px 0 0;padding:0}
+.liste li{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-top:1px solid var(--line);font-size:15px}
+.liste li:first-child{border-top:0}
+.liste button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:19px;cursor:pointer;
+  padding:0 2px;line-height:1;flex:none}
+.vide{color:var(--muted);font-size:14px;padding:8px 0}
+
+/* --- histo --- */
+.histo{list-style:none;margin:0;padding:0}
+.histo li{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line);font-size:15px}
+.histo li:first-child{border-top:0}
+.histo .j{flex:1}
+.histo .n{font-variant-numeric:tabular-nums;font-weight:700}
+.histo .pt{width:9px;height:9px;border-radius:50%;flex:none}
+.histo .ok{background:var(--accent)} .histo .ko{background:var(--warm)}
+.histo small{color:var(--muted);font-weight:400;margin-left:6px}
+
+/* --- barre du bas --- */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);
+  display:flex;padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+nav button{flex:1;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:600;
+  padding:8px 4px;cursor:pointer;border-radius:12px}
+nav button.on{color:var(--accent);background:var(--soft)}
+nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:2px}
+
+.vue{display:none} .vue.on{display:block}
+.note{font-size:13px;color:var(--muted);margin-top:12px;line-height:1.5}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<!-- ======================= RÉGLAGE INITIAL ======================= -->
+<section id="v-setup" class="vue">
+  <div class="top"><h1>J'arrête</h1></div>
+  <div class="card" style="margin-top:14px">
+    <p style="margin:0 0 4px">Cinq réponses et c'est parti. Tout reste sur ce téléphone — rien n'est envoyé nulle part, et personne d'autre n'y a accès.</p>
+
+    <label for="s-base">Combien de cigarettes par jour en ce moment ?
+      <span class="aide">Une moyenne honnête, pas un objectif.</span></label>
+    <input type="number" id="s-base" inputmode="numeric" min="1" max="80" step="1" placeholder="15">
+
+    <label for="s-date">La date où tu veux être à zéro
+      <span class="aide">La pente se calcule toute seule entre aujourd'hui et ce jour-là.</span></label>
+    <input type="date" id="s-date">
+
+    <label for="s-prix">Prix d'un paquet (€)</label>
+    <input type="number" id="s-prix" inputmode="decimal" min="1" max="50" step="0.1" placeholder="12.5">
+
+    <label for="s-pq">Cigarettes par paquet</label>
+    <input type="number" id="s-pq" inputmode="numeric" min="1" max="50" step="1" value="20">
+
+    <label for="s-raison">Une raison, dans tes mots
+      <span class="aide">Elle te sera renvoyée au moment où tu en auras besoin. Tu pourras en ajouter d'autres.</span></label>
+    <textarea id="s-raison" placeholder="Écris-la comme tu te la dirais à toi-même."></textarea>
+
+    <button class="btn" id="s-go" style="margin-top:20px">Commencer</button>
+    <p class="note" id="s-err" style="color:var(--warm)"></p>
+  </div>
+</section>
+
+<!-- ======================= AUJOURD'HUI ======================= -->
+<section id="v-jour" class="vue">
+  <div class="top"><h1>Aujourd'hui</h1><span class="d" id="j-date"></span></div>
+
+  <div class="card jour">
+    <div class="lab">fumées aujourd'hui</div>
+    <div class="gros"><span id="j-fum">0</span><span class="sur"> / <span id="j-bud">0</span></span></div>
+    <div class="jauge" id="j-jauge"><i id="j-barre" style="width:0%"></i></div>
+    <div class="reste" id="j-reste"></div>
+    <div class="zero" id="j-zero"></div>
+  </div>
+
+  <button class="btn lg" id="b-envie" style="margin-top:14px">J'ai envie</button>
+  <div class="row2">
+    <button class="btn ghost" id="b-fume">J'ai fumé</button>
+    <button class="btn ghost" id="b-annule">Annuler</button>
+  </div>
+
+  <h2>Depuis le début</h2>
+  <div class="tuiles">
+    <div class="tuile"><b id="c-nf">0</b><span>cigarettes<br>non fumées</span></div>
+    <div class="tuile"><b id="c-eu">0 €</b><span>économisés</span></div>
+    <div class="tuile"><b id="c-jr">0</b><span>jours<br>de suivi</span></div>
+  </div>
+  <p class="note" id="c-env"></p>
+
+  <div class="card" id="obj-card" style="margin-top:14px">
+    <div id="obj-vide">
+      <h2 style="margin-top:0">Cet argent va quelque part</h2>
+      <p class="note" style="margin:0 0 14px">Nommer d'avance ce qu'il achète, c'est le seul levier à preuve solide qu'on peut mettre dans une appli. Tant que ce n'est pas nommé, ce ne sont que des chiffres.</p>
+      <button class="btn ghost" id="obj-aller">Lui donner une destination</button>
+    </div>
+    <div id="obj-plein" style="display:none">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+        <strong id="obj-nom" style="font-size:17px"></strong>
+        <span class="d" id="obj-chiffres" style="font-size:14px;color:var(--muted);white-space:nowrap"></span>
+      </div>
+      <div class="jauge" style="margin:14px 0 8px"><i id="obj-barre" style="width:0%"></i></div>
+      <div class="reste" id="obj-reste"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= HISTORIQUE ======================= -->
+<section id="v-histo" class="vue">
+  <div class="top"><h1>Les jours</h1></div>
+  <div class="card"><ul class="histo" id="h-liste"></ul></div>
+  <p class="note">Le point est vert quand la journée est restée dans le budget. Un jour au-dessus ne retire rien aux compteurs : ce qui est acquis l'est.</p>
+</section>
+
+<!-- ======================= RÉGLAGES ======================= -->
+<section id="v-reg" class="vue">
+  <div class="top"><h1>Réglages</h1></div>
+
+  <div class="card">
+    <h2 style="margin-top:0">La pente</h2>
+    <label for="r-base">Point de départ (cig./jour)</label>
+    <input type="number" id="r-base" inputmode="numeric" min="1" max="80" step="1">
+    <label for="r-date">Date du zéro</label>
+    <input type="date" id="r-date">
+    <label for="r-prix">Prix du paquet (€)</label>
+    <input type="number" id="r-prix" inputmode="decimal" min="1" max="50" step="0.1">
+    <label for="r-pq">Cigarettes par paquet</label>
+    <input type="number" id="r-pq" inputmode="numeric" min="1" max="50" step="1">
+    <button class="btn" id="r-save" style="margin-top:18px">Enregistrer</button>
+    <p class="note" id="r-msg"></p>
+  </div>
+
+  <div class="card" id="r-obj">
+    <h2 style="margin-top:0">Ce que l'argent achète</h2>
+    <label for="r-objn">Quoi, précisément
+      <span class="aide">« Un week-end à Biarritz » marche mieux que « des vacances ».</span></label>
+    <input type="text" id="r-objn" placeholder="…">
+    <label for="r-objm">Combien ça coûte (€)</label>
+    <input type="number" id="r-objm" inputmode="decimal" min="1" step="1" placeholder="180">
+    <button class="btn" id="r-objsave" style="margin-top:18px">Enregistrer</button>
+    <button class="btn ghost" id="r-objdel" style="margin-top:8px;display:none">Retirer l'objectif</button>
+    <p class="note" id="r-objmsg"></p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Mes raisons</h2>
+    <ul class="liste" id="r-raisons"></ul>
+    <input type="text" id="r-newr" placeholder="Ajouter une raison…" style="margin-top:12px">
+    <button class="btn ghost" id="r-addr" style="margin-top:8px">Ajouter</button>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Mes actions de trois minutes</h2>
+    <ul class="liste" id="r-actions"></ul>
+    <input type="text" id="r-newa" placeholder="Ajouter une action…" style="margin-top:12px">
+    <button class="btn ghost" id="r-adda" style="margin-top:8px">Ajouter</button>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Les données</h2>
+    <p class="note" style="margin-top:0">Tout est gardé dans ce navigateur, sur ce téléphone. Rien ne part sur un serveur, rien n'est synchronisé.</p>
+    <button class="btn ghost" id="r-export">Copier une sauvegarde</button>
+    <p class="note" id="r-expmsg"></p>
+  </div>
+  <p class="note" id="r-ver"></p>
+</section>
+
+<!-- ======================= L'ÉCRAN D'ENVIE ======================= -->
+<div id="envie">
+  <button class="quitter" id="e-quit">Fermer</button>
+  <div class="scene">
+  <div class="anneau">
+    <svg viewBox="0 0 220 220" aria-hidden="true">
+      <circle class="bgc" cx="110" cy="110" r="100"></circle>
+      <circle class="fg" id="e-arc" cx="110" cy="110" r="100"></circle>
+    </svg>
+    <div class="centre" id="e-centre">
+      <div id="chrono">3:00</div>
+      <div class="sous" id="e-sous"></div>
+    </div>
+  </div>
+  </div>
+
+  <div class="outils">
+    <button class="outil actif" data-o="decompte">Le décompte</button>
+    <button class="outil" data-o="souffle">Respirer</button>
+    <button class="outil" data-o="raison">Mes raisons</button>
+    <button class="outil" data-o="action">Une action</button>
+  </div>
+
+  <div class="fin" id="e-fin">
+    <button class="btn" id="e-passe">C'est passé</button>
+    <button class="btn warm" id="e-fume" style="margin-top:9px">J'ai fumé quand même</button>
+    <p class="note" style="text-align:center">Les deux s'enregistrent.</p>
+  </div>
+
+  <div class="fin" id="e-bilan">
+    <p id="e-bilan-txt" style="text-align:center;font-size:17px;line-height:1.45;margin:0 0 16px"></p>
+    <button class="btn ghost" id="e-ok">Continuer</button>
+  </div>
+</div>
+
+<nav>
+  <button data-v="jour" class="on"><i>●</i>Aujourd'hui</button>
+  <button data-v="histo"><i>▤</i>Les jours</button>
+  <button data-v="reg"><i>⚙</i>Réglages</button>
+</nav>
+
+<script>
+"use strict";
+const VERSION = "0.2";
+const CLE = "jarrete_v1";
+/* Trois minutes, parce qu'un délai qu'on s'impose est une technique défendable.
+   PAS parce qu'une envie durerait trois minutes : aucune étude ne mesure la durée
+   d'un épisode d'envie, et les organismes de santé qui avancent un chiffre se
+   contredisent sans jamais citer de source. On n'affirme donc rien sur sa durée.
+   Cette phrase est la SEULE source de vérité du texte : elle avait été écrite en
+   double, dans le HTML et dans le JS, et c'est la version JS qui s'affichait. */
+const DUREE = 180;
+const TXT_DECOMPTE = "Trois minutes avant de décider. C'est tout ce que fait ce bouton.";
+
+const ACTIONS_PAR_DEFAUT = [
+  "Un grand verre d'eau, lentement.",
+  "Sortir prendre l'air deux minutes.",
+  "Monter un étage à pied.",
+  "Se laver les mains à l'eau froide.",
+  "Ranger une seule chose, celle qui traîne."
+];
+
+/* ===================== l'état ===================== */
+let S = null;
+
+function neuf(){
+  return {v:1, setup:null, jours:{}, raisons:[], actions:ACTIONS_PAR_DEFAUT.slice(), objectif:null};
+}
+function charger(){
+  try{
+    const b = localStorage.getItem(CLE);
+    if(b){ const o = JSON.parse(b); if(o && typeof o === "object"){ S = Object.assign(neuf(), o); return; } }
+  }catch(e){ /* stockage indisponible : on tourne en mémoire, l'appli ne doit pas se bloquer */ }
+  S = neuf();
+}
+function sauver(){
+  try{ localStorage.setItem(CLE, JSON.stringify(S)); }catch(e){}
+}
+
+/* ===================== les dates ===================== */
+const pad = n => String(n).padStart(2,"0");
+function cle(d){ d = d || new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function deCle(k){ const [a,m,j] = k.split("-").map(Number); return new Date(a, m-1, j); }
+/* différence en jours pleins, en passant par midi pour ne pas se faire piéger par l'heure d'été */
+function joursEntre(k1, k2){
+  const a = deCle(k1), b = deCle(k2);
+  a.setHours(12,0,0,0); b.setHours(12,0,0,0);
+  return Math.round((b - a) / 86400000);
+}
+function joliDate(k){
+  return deCle(k).toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"});
+}
+function joliCourt(k){
+  return deCle(k).toLocaleDateString("fr-FR", {weekday:"short", day:"numeric", month:"short"});
+}
+
+/* ===================== la pente ===================== */
+/* Descente linéaire du point de départ jusqu'à zéro le jour cible.
+   Avant le départ : le point de départ. À partir de la cible : zéro, pour de bon. */
+function budgetDu(k){
+  const s = S.setup; if(!s) return 0;
+  const total = joursEntre(s.debut, s.cible);
+  const passe = joursEntre(s.debut, k);
+  if(total <= 0) return 0;
+  if(passe <= 0) return s.base;
+  if(passe >= total) return 0;
+  return Math.max(0, Math.round(s.base * (1 - passe/total)));
+}
+function jourDe(k){
+  if(!S.jours[k]) S.jours[k] = {fumees:0, envies:[]};
+  if(!Array.isArray(S.jours[k].envies)) S.jours[k].envies = [];
+  return S.jours[k];
+}
+const prixCig = () => S.setup ? S.setup.prix / S.setup.parPaquet : 0;
+
+/* Les cumuls ne redescendent jamais : une journée au-dessus du départ
+   n'a rien évité, elle ne retire rien non plus. Pas de dette. */
+function cumuls(){
+  const s = S.setup; if(!s) return {nonFumees:0, euros:0, jours:0, envies:0, passees:0};
+  let nf = 0, jours = 0, env = 0, passees = 0, tenus = 0;
+  const auj = cle();
+  for(const k of Object.keys(S.jours)){
+    if(joursEntre(k, auj) < 0) continue;              /* on ne compte pas l'avenir */
+    const j = S.jours[k];
+    nf += Math.max(0, s.base - j.fumees);
+    jours++;
+    if(j.fumees <= budgetDu(k)) tenus++;
+    env += j.envies.length;
+    passees += j.envies.filter(e => e.passee).length;
+  }
+  return {nonFumees:nf, euros:nf*prixCig(), jours, envies:env, passees, tenus};
+}
+
+/* ===================== l'affichage ===================== */
+const $ = id => document.getElementById(id);
+/* L'argent s'arrondit vers le bas, jamais vers le haut : un compteur d'économies
+   qui flatte de trente centimes n'est plus un compteur. */
+const fmtEuro = v => {
+  if(v < 100) return (Math.floor(v*100)/100).toLocaleString("fr-FR",{minimumFractionDigits:2, maximumFractionDigits:2}) + " €";
+  return Math.floor(v).toLocaleString("fr-FR") + " €";
+};
+
+let vue = "jour";
+function montrer(v){
+  vue = v;
+  for(const s of document.querySelectorAll(".vue")) s.classList.toggle("on", s.id === "v-"+v);
+  for(const b of document.querySelectorAll("nav button")) b.classList.toggle("on", b.dataset.v === v);
+  document.querySelector("nav").style.display = (v === "setup") ? "none" : "flex";
+  window.scrollTo(0,0);
+  rendre();
+}
+
+function rendre(){
+  if(!S.setup){ return; }
+  const k = cle(), j = jourDe(k), bud = budgetDu(k);
+
+  $("j-date").textContent = joliDate(k);
+  $("j-fum").textContent = j.fumees;
+  $("j-bud").textContent = bud;
+
+  const pct = bud > 0 ? Math.min(100, j.fumees/bud*100) : (j.fumees > 0 ? 100 : 0);
+  $("j-barre").style.width = pct + "%";
+  $("j-jauge").classList.toggle("depasse", j.fumees > bud);
+
+  const reste = bud - j.fumees;
+  $("j-reste").textContent = reste > 0 ? ("il t'en reste " + reste + (reste > 1 ? " pour aujourd'hui" : " pour aujourd'hui"))
+    : reste === 0 ? "budget du jour atteint"
+    : ("au-dessus de " + (-reste) + " — demain repart à " + budgetDu(cle(new Date(Date.now()+86400000))));
+
+  const s = S.setup, restants = joursEntre(k, s.cible);
+  $("j-zero").textContent = restants > 0
+    ? ("zéro le " + joliCourt(s.cible) + " — dans " + restants + (restants > 1 ? " jours" : " jour"))
+    : restants === 0 ? "c'est aujourd'hui, le zéro." : "le zéro est derrière toi.";
+
+  const c = cumuls();
+  $("c-nf").textContent = c.nonFumees;
+  $("c-eu").textContent = fmtEuro(c.euros);
+  $("c-jr").textContent = c.jours;
+  $("c-env").textContent = c.envies
+    ? (c.envies + (c.envies > 1 ? " envies notées" : " envie notée") + ", " + c.passees + " passée" + (c.passees > 1 ? "s" : "") + " sans cigarette.")
+    : "Appuie sur « J'ai envie » au moment où ça vient — c'est ce qui construira la carte.";
+
+  rendreObjectif(c);
+  rendreHisto();
+  rendreListes();
+  $("r-ver").textContent = "J'arrête · version " + VERSION;
+}
+
+/* L'objectif d'épargne : les incitations sont le seul levier à certitude élevée
+   (Cochrane CD004307, RR 1,52, effet qui survit à leur retrait). Nommer d'avance
+   ce que l'argent achète, c'est « susciter un engagement » + « la récompense »,
+   deux des trois techniques qui ressortent chez Black 2020. */
+function rendreObjectif(c){
+  const o = S.objectif;
+  const aUnObjectif = !!(o && o.nom && o.montant > 0);
+  $("obj-vide").style.display = aUnObjectif ? "none" : "block";
+  $("obj-plein").style.display = aUnObjectif ? "block" : "none";
+  $("r-objdel").style.display = aUnObjectif ? "block" : "none";
+  if(!aUnObjectif) return;
+
+  const pct = Math.min(100, c.euros / o.montant * 100);
+  $("obj-nom").textContent = o.nom;
+  $("obj-chiffres").textContent = fmtEuro(c.euros) + " sur " + fmtEuro(o.montant);
+  $("obj-barre").style.width = pct + "%";
+
+  if(c.euros >= o.montant){ $("obj-reste").textContent = "C'est payé. Va le chercher."; return; }
+  /* La projection se fait sur le rythme RÉELLEMENT constaté, pas sur un rythme
+     espéré : un objectif qui s'approche plus vite que la réalité est un mensonge. */
+  const parJour = c.jours > 0 ? c.euros / c.jours : 0;
+  if(parJour <= 0){ $("obj-reste").textContent = "Il reste " + fmtEuro(o.montant - c.euros) + "."; return; }
+  const j = Math.ceil((o.montant - c.euros) / parJour);
+  $("obj-reste").textContent = "Il reste " + fmtEuro(o.montant - c.euros)
+    + " — environ " + j + (j > 1 ? " jours" : " jour") + " au rythme de tes " + c.jours
+    + (c.jours > 1 ? " derniers jours" : " dernier jour") + ".";
+}
+
+function rendreHisto(){
+  const ul = $("h-liste"), auj = cle();
+  const ks = Object.keys(S.jours).filter(k => joursEntre(k, auj) >= 0).sort().reverse().slice(0, 60);
+  if(!ks.length){ ul.innerHTML = '<li class="vide">Rien encore. La première journée commence aujourd\'hui.</li>'; return; }
+  ul.innerHTML = ks.map(k => {
+    const j = S.jours[k], b = budgetDu(k), ok = j.fumees <= b;
+    const env = j.envies.length ? '<small>' + j.envies.length + ' envie' + (j.envies.length>1?'s':'') + '</small>' : '';
+    return '<li><span class="pt ' + (ok ? 'ok' : 'ko') + '"></span>'
+      + '<span class="j">' + joliCourt(k) + env + '</span>'
+      + '<span class="n">' + j.fumees + ' <small>/ ' + b + '</small></span></li>';
+  }).join("");
+}
+
+function rendreListes(){
+  const faire = (ul, tab, quoi) => {
+    if(!tab.length){ ul.innerHTML = '<li class="vide">Rien pour l\'instant.</li>'; return; }
+    ul.innerHTML = tab.map((t,i) =>
+      '<li><span style="flex:1">' + echap(t) + '</span><button data-sup="' + quoi + '" data-i="' + i + '" aria-label="Retirer">×</button></li>').join("");
+  };
+  faire($("r-raisons"), S.raisons, "raisons");
+  faire($("r-actions"), S.actions, "actions");
+}
+const echap = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ===================== fumer / annuler ===================== */
+function fumer(){
+  const j = jourDe(cle());
+  j.fumees++;
+  sauver(); rendre();
+}
+function annuler(){
+  const j = jourDe(cle());
+  if(j.fumees > 0){ j.fumees--; sauver(); rendre(); }
+}
+
+/* ===================== l'écran d'envie ===================== */
+let tic = null, reste = DUREE, outil = "decompte", souffleTimer = null, envieEnCours = null;
+const CIRC = 2 * Math.PI * 100;
+
+function ouvrirEnvie(){
+  reste = DUREE; outil = "decompte"; envieEnCours = {t: Date.now(), outils: [], passee: null};
+  $("envie").classList.add("on");
+  $("e-fin").classList.remove("on");
+  $("e-arc").style.strokeDasharray = CIRC;
+  $("e-arc").style.strokeDashoffset = 0;
+  choisirOutil("decompte");
+  majChrono();
+  clearInterval(tic);
+  tic = setInterval(() => {
+    reste--;
+    majChrono();
+    if(reste <= 0){ clearInterval(tic); tic = null; finEnvie(); }
+  }, 1000);
+}
+function majChrono(){
+  const m = Math.floor(Math.max(0,reste)/60), s = Math.max(0,reste)%60;
+  const el = $("chrono"); if(el) el.textContent = m + ":" + pad(s);
+  $("e-arc").style.strokeDashoffset = CIRC * (1 - Math.max(0,reste)/DUREE);
+}
+function finEnvie(){
+  $("e-fin").classList.add("on");
+  if(outil === "decompte"){
+    const el = $("chrono"); if(el) el.textContent = "0:00";
+    $("e-sous").textContent = "Trois minutes de passées. À toi.";
+  }
+}
+
+/* Après un écart, ce qui prédit le passage à la rechute complète, ce n'est pas la
+   culpabilité — elle n'est pas prédictive (Kirchner 2011, Shiffman 2006) — c'est
+   l'effondrement du sentiment d'être capable. On ne console donc pas : on rappelle
+   ce qui a déjà été tenu, parce que c'est factuel et que ça, ça reste vrai. */
+function repondre(passee){
+  if(!envieEnCours) return;
+  envieEnCours.passee = passee;
+  const j = jourDe(cle());
+  j.envies.push(envieEnCours);
+  if(!passee) j.fumees++;
+  sauver();
+  envieEnCours = null;
+
+  const c = cumuls();
+  let t;
+  if(passee){
+    t = c.passees > 1
+      ? "Celle-là est passée. Ça fait " + c.passees + " depuis le début."
+      : "Celle-là est passée. C'est la première que tu notes.";
+  } else {
+    const bouts = [];
+    if(c.passees > 0) bouts.push(c.passees + (c.passees > 1 ? " envies passées" : " envie passée"));
+    if(c.tenus > 0) bouts.push(c.tenus + (c.tenus > 1 ? " jours tenus dans le budget" : " jour tenu dans le budget"));
+    t = bouts.length
+      ? "C'est noté. " + bouts.join(" et ") + " : ça, c'est toi, et ça reste vrai."
+      : "C'est noté. On repart de là.";
+  }
+  $("e-bilan-txt").textContent = t;
+  $("e-fin").classList.remove("on");
+  $("e-bilan").classList.add("on");
+  rendre();
+}
+
+function fermerEnvie(){
+  clearInterval(tic); tic = null;
+  clearTimeout(souffleTimer); souffleTimer = null;
+  $("envie").classList.remove("on");
+  $("e-bilan").classList.remove("on");
+  $("e-fin").classList.remove("on");
+  envieEnCours = null;
+  rendre();
+}
+
+function choisirOutil(o){
+  outil = o;
+  if(envieEnCours && envieEnCours.outils.indexOf(o) < 0) envieEnCours.outils.push(o);
+  for(const b of document.querySelectorAll(".outil")) b.classList.toggle("actif", b.dataset.o === o);
+  clearTimeout(souffleTimer); souffleTimer = null;
+  const c = $("e-centre");
+
+  if(o === "decompte"){
+    c.innerHTML = '<div id="chrono"></div><div class="sous" id="e-sous">' + TXT_DECOMPTE + '</div>';
+    majChrono();
+  }
+  else if(o === "souffle"){
+    c.innerHTML = '<div class="souffle" id="e-rond"></div><div class="sous" id="e-sous" style="margin-top:10px">Inspire</div>';
+    cycleSouffle(true);
+  }
+  else if(o === "raison"){
+    const t = S.raisons.length ? S.raisons[Math.floor(Math.random()*S.raisons.length)]
+                               : "Tu n'as pas encore écrit de raison. Tu pourras en ajouter dans les réglages.";
+    c.innerHTML = '<div class="phrase">' + echap(t) + '</div>';
+  }
+  else if(o === "action"){
+    const t = S.actions.length ? S.actions[Math.floor(Math.random()*S.actions.length)]
+                               : "Ajoute tes actions dans les réglages.";
+    c.innerHTML = '<div class="phrase">' + echap(t) + '</div>';
+  }
+}
+/* quatre secondes à l'inspiration, six à l'expiration : l'expiration longue est ce qui calme */
+function cycleSouffle(inspire){
+  const r = $("e-rond"), s = $("e-sous");
+  if(!r){ return; }
+  r.classList.toggle("out", !inspire);
+  r.style.transform = inspire ? "scale(1.55)" : "scale(1)";
+  if(s) s.textContent = inspire ? "Inspire" : "Expire";
+  souffleTimer = setTimeout(() => cycleSouffle(!inspire), inspire ? 4000 : 6000);
+}
+
+/* ===================== le réglage initial ===================== */
+function lancerSetup(){
+  const d = new Date(); d.setDate(d.getDate() + 60);
+  $("s-date").value = cle(d);
+  $("s-date").min = cle(new Date(Date.now() + 86400000));
+  montrer("setup");
+}
+function validerSetup(){
+  const base = parseInt($("s-base").value, 10);
+  const cible = $("s-date").value;
+  const prix = parseFloat(String($("s-prix").value).replace(",", "."));
+  const pq = parseInt($("s-pq").value, 10);
+  const raison = $("s-raison").value.trim();
+  const err = [];
+  if(!(base >= 1 && base <= 80)) err.push("le nombre de cigarettes par jour");
+  if(!cible || joursEntre(cle(), cible) < 1) err.push("une date du zéro dans le futur");
+  if(!(prix > 0 && prix <= 50)) err.push("le prix du paquet");
+  if(!(pq >= 1 && pq <= 50)) err.push("le nombre de cigarettes par paquet");
+  if(err.length){ $("s-err").textContent = "Il manque " + err.join(", ") + "."; return; }
+
+  S.setup = {debut: cle(), base, cible, prix, parPaquet: pq};
+  if(raison) S.raisons.push(raison);
+  sauver();
+  montrer("jour");
+}
+
+/* ===================== les réglages ===================== */
+function remplirReglages(){
+  if(!S.setup) return;
+  $("r-base").value = S.setup.base;
+  $("r-date").value = S.setup.cible;
+  $("r-prix").value = S.setup.prix;
+  $("r-pq").value = S.setup.parPaquet;
+  if(S.objectif){ $("r-objn").value = S.objectif.nom; $("r-objm").value = S.objectif.montant; }
+}
+function enregistrerReglages(){
+  const base = parseInt($("r-base").value, 10);
+  const cible = $("r-date").value;
+  const prix = parseFloat(String($("r-prix").value).replace(",", "."));
+  const pq = parseInt($("r-pq").value, 10);
+  if(!(base >= 1 && base <= 80) || !cible || !(prix > 0) || !(pq >= 1)){
+    $("r-msg").textContent = "Une des valeurs ne va pas — rien n'a été changé."; return;
+  }
+  S.setup.base = base; S.setup.cible = cible; S.setup.prix = prix; S.setup.parPaquet = pq;
+  sauver(); rendre();
+  $("r-msg").textContent = "Enregistré. La pente est recalculée.";
+  setTimeout(() => { $("r-msg").textContent = ""; }, 2500);
+}
+
+/* ===================== les écouteurs ===================== */
+document.addEventListener("click", e => {
+  const nav = e.target.closest("nav button");
+  if(nav){ montrer(nav.dataset.v); return; }
+
+  const outilBtn = e.target.closest(".outil");
+  if(outilBtn){ choisirOutil(outilBtn.dataset.o); return; }
+
+  const sup = e.target.closest("[data-sup]");
+  if(sup){
+    S[sup.dataset.sup].splice(+sup.dataset.i, 1);
+    sauver(); rendreListes(); return;
+  }
+});
+
+$("s-go").addEventListener("click", validerSetup);
+$("b-envie").addEventListener("click", ouvrirEnvie);
+$("b-fume").addEventListener("click", fumer);
+$("b-annule").addEventListener("click", annuler);
+$("e-quit").addEventListener("click", fermerEnvie);
+$("e-passe").addEventListener("click", () => repondre(true));
+$("e-fume").addEventListener("click", () => repondre(false));
+$("e-ok").addEventListener("click", fermerEnvie);
+$("r-save").addEventListener("click", enregistrerReglages);
+
+$("obj-aller").addEventListener("click", () => { montrer("reg"); $("r-objn").focus(); });
+$("r-objsave").addEventListener("click", () => {
+  const nom = $("r-objn").value.trim();
+  const montant = parseFloat(String($("r-objm").value).replace(",", "."));
+  if(!nom || !(montant > 0)){ $("r-objmsg").textContent = "Il faut un nom et un montant."; return; }
+  S.objectif = {nom, montant};
+  sauver(); rendre();
+  $("r-objmsg").textContent = "Enregistré.";
+  setTimeout(() => { $("r-objmsg").textContent = ""; }, 2500);
+});
+$("r-objdel").addEventListener("click", () => {
+  S.objectif = null; $("r-objn").value = ""; $("r-objm").value = "";
+  sauver(); rendre();
+});
+
+$("r-addr").addEventListener("click", () => {
+  const t = $("r-newr").value.trim();
+  if(!t) return;
+  S.raisons.push(t); $("r-newr").value = ""; sauver(); rendreListes();
+});
+$("r-adda").addEventListener("click", () => {
+  const t = $("r-newa").value.trim();
+  if(!t) return;
+  S.actions.push(t); $("r-newa").value = ""; sauver(); rendreListes();
+});
+$("r-export").addEventListener("click", async () => {
+  const txt = JSON.stringify(S);
+  try{
+    await navigator.clipboard.writeText(txt);
+    $("r-expmsg").textContent = "Copié. Colle-le où tu veux le garder.";
+  }catch(e){
+    $("r-expmsg").textContent = "La copie automatique n'a pas marché sur ce navigateur.";
+  }
+  setTimeout(() => { $("r-expmsg").textContent = ""; }, 4000);
+});
+
+/* on ne laisse pas le décompte tourner dans le vide si l'écran se verrouille :
+   on recalcule le temps restant au retour plutôt que de faire confiance aux ticks */
+let quandCache = 0;
+document.addEventListener("visibilitychange", () => {
+  if(!envieEnCours) return;
+  if(document.hidden){ quandCache = Date.now(); }
+  else if(quandCache){
+    const ecoule = Math.round((Date.now() - quandCache)/1000);
+    reste = Math.max(0, reste - ecoule);
+    quandCache = 0;
+    majChrono();
+    if(reste <= 0 && tic){ clearInterval(tic); tic = null; finEnvie(); }
+  }
+});
+
+/* ===================== démarrage ===================== */
+charger();
+remplirReglages();
+if(S.setup){ montrer("jour"); } else { lancerSetup(); }
+</script>
+</body>
+</html>
